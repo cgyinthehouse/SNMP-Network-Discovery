@@ -26,8 +26,7 @@ echo "Output directory: $OUTPUT_DIR"
 echo ""
 
 # Activate virtual environment if it exists
-if [ -d "venv" ]; then
-    source venv/bin/activate
+# uv handles environment automatically
 fi
 
 discovered=0
@@ -44,7 +43,7 @@ while IFS= read -r IP || [ -n "$IP" ]; do
     echo -n "Scanning $IP... "
     
     # Run discovery with timeout
-    timeout 180 python main.py "$IP" --community "$COMMUNITY" > "$OUTPUT_FILE" 2>&1
+    timeout 180 uv run python main.py "$IP" --community "$COMMUNITY" > "$OUTPUT_FILE" 2>&1
     
     # Check if successful
     if grep -q '"Device Name"' "$OUTPUT_FILE" 2>/dev/null; then

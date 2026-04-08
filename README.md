@@ -5,22 +5,13 @@ This script performs SNMP-based network device discovery, supporting SNMPv1, SNM
 
 ## Requirements
 - **Python:** 3.12 or higher
-- **pysnmp:** 7.1 or higher
-- **Dependencies:** Installed via `pip install -r requirements.txt`
+- **uv:** For dependency management
 
 ## Installation
 
 ```bash
-# Create virtual environment
-python3 -m venv venv
-
-# Activate virtual environment
-source venv/bin/activate  # Linux/Mac
-# OR
-venv\Scripts\activate  # Windows
-
 # Install dependencies
-pip install -r requirements.txt
+uv sync
 ```
 
 ## Building from Source
@@ -49,7 +40,7 @@ This project includes a **GitHub Actions** workflow to automatically build binar
 
 ### Basic Syntax
 ```bash
-python main.py <IP_ADDRESS> [OPTIONS]
+uv run python main.py <IP_ADDRESS> [OPTIONS]
 ```
 
 ---
@@ -58,7 +49,7 @@ python main.py <IP_ADDRESS> [OPTIONS]
 
 ### 1. SNMPv1 Discovery
 ```bash
-python main.py 192.168.1.1 --version 1 --community public
+uv run python main.py 192.168.1.1 --version 1 --community public
 ```
 
 **Parameters:**
@@ -70,10 +61,10 @@ python main.py 192.168.1.1 --version 1 --community public
 ### 2. SNMPv2c Discovery (Default)
 ```bash
 # Using default version (2) and community
-python main.py 192.168.1.1
+uv run python main.py 192.168.1.1
 
 # Explicit parameters
-python main.py 192.168.1.1 --version 2 --community private
+uv run python main.py 192.168.1.1 --version 2 --community private
 ```
 
 **Parameters:**
@@ -86,7 +77,7 @@ python main.py 192.168.1.1 --version 2 --community private
 
 #### SNMPv3 with Authentication Only (authNoPriv)
 ```bash
-python main.py 192.168.1.1 --version 3 \
+uv run python main.py 192.168.1.1 --version 3 \
   --user snmpv3user \
   --auth_key yourAuthPassword \
   --auth_proto SHA \
@@ -95,7 +86,7 @@ python main.py 192.168.1.1 --version 3 \
 
 #### SNMPv3 with Authentication & Privacy (authPriv) - **Recommended**
 ```bash
-python main.py 192.168.1.1 --version 3 \
+uv run python main.py 192.168.1.1 --version 3 \
   --user snmpv3user \
   --auth_key yourAuthPassword \
   --priv_key yourPrivPassword \

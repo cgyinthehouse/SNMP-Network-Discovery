@@ -35,7 +35,7 @@ echo "Privacy Protocol: $PRIV_PROTO"
 echo ""
 
 # Run discovery
-python main.py "$IP" \
+uv run python main.py "$IP" \
     --version 3 \
     --user "$USER" \
     --auth_key "$AUTH_KEY" \
