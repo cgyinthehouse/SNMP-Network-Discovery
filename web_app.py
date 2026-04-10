@@ -1,4 +1,5 @@
 import json
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
 
@@ -29,12 +30,16 @@ from pysnmp.hlapi.v3arch.asyncio import (
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR / "frontend"
-TEMPLATES_DIR = FRONTEND_DIR / "templates"
 STATIC_DIR = FRONTEND_DIR / "static"
 DATA_DIR = BASE_DIR / "data"
 DATA_FILE = DATA_DIR / "devices.json"
 
-app = FastAPI(title="SNMP Network Topology", version="0.1.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    ensure_data_path()
+    yield
+
+app = FastAPI(title="SNMP Network Topology", version="0.1.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 graph_manager = GraphManager()
@@ -126,14 +131,9 @@ class DeviceModel(BaseModel):
     model: Optional[str] = None
 
 
-@app.on_event("startup")
-async def startup_event():
-    ensure_data_path()
-
-
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    index_path = TEMPLATES_DIR / "index.html"
+    index_path = FRONTEND_DIR / "index.html"
     if not index_path.exists():
         raise HTTPException(status_code=500, detail="UI template not found")
     return HTMLResponse(index_path.read_text(encoding="utf-8"))

@@ -3,11 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "devDependencies": {
+    "@swc/cli": "^0.8.1",
+    "@swc/core": "^1.15.24",
     "@types/cytoscape": "^3.4.0",
     "typescript": "^5.8.0"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.json"
+    "build": "swc src/app.ts -o static/js/app.js --source-maps"
   },
   "dependencies": {
     "cytoscape": "^3.33.2"
