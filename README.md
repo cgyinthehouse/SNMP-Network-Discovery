@@ -10,9 +10,20 @@ This script performs SNMP-based network device discovery, supporting SNMPv1, SNM
 ## Installation
 
 ```bash
-# Install dependencies
+# Install Python dependencies
 uv sync
 ```
+
+### Frontend TypeScript build
+
+If you want to build the web UI frontend locally, install pnpm and run:
+
+```bash
+cd frontend
+pnpm install
+pnpm run build
+```
+
 
 ## Building from Source
 
@@ -35,6 +46,20 @@ This project includes a **GitHub Actions** workflow to automatically build binar
 2. Go to the "Actions" tab in your GitHub repository.
 3. Select the "Build Binaries" workflow.
 4. Download the artifacts (zip files) from the completed run.
+
+## Web Interface
+
+A FastAPI-based web interface is included for interactive topology discovery.
+
+```bash
+uv run python web_app.py
+```
+
+Then open:
+
+```text
+http://localhost:8000
+```
 
 ## Usage
 

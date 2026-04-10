@@ -1,10 +1,12 @@
-import networkx as nx
-import matplotlib.pyplot as plt
 import json
-from .network_utils import NetworkUtils
-from .snmp_manager import SNMPManager
+
+import matplotlib.pyplot as plt
+import networkx as nx
+
 from .database_manager import DatabaseManager
 from .screen_utils import ScreenUtils
+from .snmp_manager import SNMPManager
+
 
 class GraphManager:
     def __init__(self, version=None, community=None, user=None, auth_key=None, priv_key=None, auth_protocol=None, priv_protocol=None):
@@ -35,7 +37,73 @@ class GraphManager:
 
         return G
 
-    def draw_topology(self, graph):
+    def build_topology_json(self, devices):
+        """Build a JSON-friendly topology from discovered device records."""
+        nodes = []
+        edges = []
+        seen_node_ids = set()
+        seen_edges = set()
+
+        def add_node(node_id, label=None, ip=None, device_type=None, model=None):
+            if not node_id or node_id in seen_node_ids:
+                return
+            seen_node_ids.add(node_id)
+            nodes.append({
+                "id": node_id,
+                "label": label or node_id,
+                "ip": ip,
+                "type": device_type,
+                "model": model,
+            })
+
+        for device in devices:
+            device_name = device.get("Device Name") or device.get("IP Address")
+            if not device_name:
+                continue
+
+            add_node(
+                device_name,
+                label=device.get("Device Name", device_name),
+                ip=device.get("IP Address"),
+                device_type=device.get("Device Type", "Unknown"),
+                model=device.get("Model Number", "Unknown"),
+            )
+
+            neighbors = device.get("Details", {}).get("Neighbors", [])
+            for neighbor in neighbors:
+                neighbor_name = neighbor.get("Neighbor Name") or neighbor.get("Neighbor ID") or neighbor.get("Destination IP")
+                if not neighbor_name or neighbor_name in {"Unknown", "N/A", ""}:
+                    continue
+
+                add_node(
+                    neighbor_name,
+                    label=neighbor.get("Neighbor Name", neighbor_name),
+                    ip=neighbor.get("Destination IP"),
+                    device_type=None,
+                    model=None,
+                )
+
+                local_interface = neighbor.get("Origin Interface") or neighbor.get("local_interface") or "Unknown"
+                remote_interface = neighbor.get("Remote Port") or neighbor.get("remote_interface") or "Unknown"
+                edge_label = f"{local_interface} → {remote_interface}"
+                edge_key = tuple(sorted([device_name, neighbor_name]) + [edge_label])
+
+                if edge_key in seen_edges:
+                    continue
+
+                seen_edges.add(edge_key)
+                edges.append({
+                    "id": f"{device_name}|{neighbor_name}|{edge_label}",
+                    "source": device_name,
+                    "target": neighbor_name,
+                    "label": edge_label,
+                    "protocol": neighbor.get("Protocol", "Unknown"),
+                    "platform": neighbor.get("Platform", ""),
+                })
+
+        return {"nodes": nodes, "edges": edges}
+
+    def draw_topology(self, graph) -> None:
         screen_width_px, screen_height_px = ScreenUtils.get_screen_size()
         dpi = 100
         max_size_px = 16384

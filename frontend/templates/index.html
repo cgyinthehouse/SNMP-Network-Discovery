@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SNMP Topology Viewer</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.4.0/dist/cytoscape.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>SNMP Topology Viewer</h1>
+      <p>Discover LAN devices and visualize topology in the browser.</p>
+    </header>
+
+    <section class="panel">
+      <form id="discover-form">
+        <div class="form-row">
+          <label for="ip">Device IP</label>
+          <input id="ip" name="ip" type="text" placeholder="192.168.1.1" required />
+        </div>
+
+        <div class="form-row">
+          <label for="version">SNMP Version</label>
+          <select id="version" name="version">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label for="community">Community</label>
+          <input id="community" name="community" type="text" value="public" />
+        </div>
+
+        <div class="form-row">
+          <label for="user">SNMPv3 User</label>
+          <input id="user" name="user" type="text" />
+        </div>
+
+        <div class="form-row">
+          <label for="auth_key">Auth Key</label>
+          <input id="auth_key" name="auth_key" type="password" />
+        </div>
+
+        <div class="form-row">
+          <label for="priv_key">Priv Key</label>
+          <input id="priv_key" name="priv_key" type="password" />
+        </div>
+
+        <div class="form-row">
+          <label for="auth_proto">Auth Protocol</label>
+          <select id="auth_proto" name="auth_proto">
+            <option value="SHA">SHA</option>
+            <option value="MD5">MD5</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label for="priv_proto">Priv Protocol</label>
+          <select id="priv_proto" name="priv_proto">
+            <option value="AES">AES</option>
+            <option value="3DES">3DES</option>
+            <option value="DES">DES</option>
+          </select>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit">Discover Device</button>
+          <button type="button" id="reset-btn">Reset Topology</button>
+        </div>
+      </form>
+
+      <div id="message" class="message"></div>
+      <div id="device-list" class="device-list"></div>
+    </section>
+
+    <section class="topology">
+      <div class="topology-header">
+        <h2>Network Topology</h2>
+        <p>Click a node to view device details.</p>
+      </div>
+      <div id="cy"></div>
+    </section>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
