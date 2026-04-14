@@ -5,11 +5,10 @@
   "devDependencies": {
     "@swc/cli": "^0.8.1",
     "@swc/core": "^1.15.24",
-    "@types/cytoscape": "^3.4.0",
     "typescript": "^5.8.0"
   },
   "scripts": {
-    "build": "swc src/app.ts -o static/js/app.js --source-maps"
+    "build": "spack"
   },
   "dependencies": {
     "cytoscape": "^3.33.2"
