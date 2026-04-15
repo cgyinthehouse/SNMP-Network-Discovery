@@ -1,14 +1,16 @@
 {
   "name": "snmp-network-topology-ui",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "devDependencies": {
-    "@swc/cli": "^0.8.1",
-    "@swc/core": "^1.15.24",
-    "typescript": "^5.8.0"
-  },
   "scripts": {
-    "build": "spack"
+    "dev": "rspack dev",
+    "build": "rspack build",
+    "preview": "rspack preview"
+  },
+  "devDependencies": {
+    "@rspack/cli": "^1.7.11",
+    "@rspack/core": "^1.7.11",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "cytoscape": "^3.33.2"

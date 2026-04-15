@@ -30,7 +30,7 @@ from pysnmp.hlapi.v3arch.asyncio import (
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR / "frontend"
-STATIC_DIR = FRONTEND_DIR / "static"
+DIST_DIR = FRONTEND_DIR / "dist"
 DATA_DIR = BASE_DIR / "data"
 DATA_FILE = DATA_DIR / "devices.json"
 
@@ -40,8 +40,8 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="SNMP Network Topology", version="0.1.0", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+# Mount API routes first (higher priority)
 graph_manager = GraphManager()
 
 auth_protocol_map = {
@@ -133,7 +133,7 @@ class DeviceModel(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    index_path = FRONTEND_DIR / "index.html"
+    index_path = FRONTEND_DIR / "dist/index.html"
     if not index_path.exists():
         raise HTTPException(status_code=500, detail="UI template not found")
     return HTMLResponse(index_path.read_text(encoding="utf-8"))
@@ -190,6 +190,10 @@ async def discover_device(request: DiscoverRequest):
 async def reset_devices():
     save_devices([])
     return {"status": "ok", "devices": []}
+
+
+# Mount static files from dist directory (lowest priority, after all API routes)
+app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="static")
 
 
 if __name__ == "__main__":
