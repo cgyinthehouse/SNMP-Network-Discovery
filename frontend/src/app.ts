@@ -1,3 +1,4 @@
+import "./styles.css";
 import cytoscape, { ElementDefinition } from "cytoscape";
 import type { Topology, DiscoveredDevice, DiscoverPayload } from "./types";
 
