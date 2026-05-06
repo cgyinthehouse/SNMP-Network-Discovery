@@ -1,11 +1,6 @@
 import "./styles.css";
 import cytoscape, { ElementDefinition } from "cytoscape";
-import type { Topology, DiscoveredDevice, DiscoverPayload } from "./types";
-
-const form = document.getElementById("discover-form") as HTMLFormElement;
-const messageBox = document.getElementById("message") as HTMLDivElement;
-const deviceList = document.getElementById("device-list") as HTMLDivElement;
-const resetButton = document.getElementById("reset-btn") as HTMLButtonElement;
+import type { Topology } from "./types";
 
 const cy = cytoscape({
   container: document.getElementById("cy"),
@@ -16,7 +11,7 @@ const cy = cytoscape({
       style: {
         "background-color": "#1976d2",
         label: "data(label)",
-        color: "#ffffff",
+        color: "#000000",
         "text-valign": "center",
         "text-halign": "center",
         width: "40",
@@ -32,30 +27,9 @@ const cy = cytoscape({
         width: 2,
         "line-color": "#999999",
         "target-arrow-color": "#999999",
-        "target-arrow-shape": "triangle",
+        "target-arrow-shape": "none",
         "curve-style": "bezier",
-        label: "data(label)",
         "font-size": "8px",
-        "text-rotation": "autorotate",
-        "text-margin-y": -10,
-      },
-    },
-    {
-      selector: ".router",
-      style: {
-        "background-color": "#ff9800",
-      },
-    },
-    {
-      selector: ".switch",
-      style: {
-        "background-color": "#4caf50",
-      },
-    },
-    {
-      selector: ".firewall",
-      style: {
-        "background-color": "#f44336",
       },
     },
   ],
@@ -67,61 +41,51 @@ const cy = cytoscape({
   },
 });
 
-async function fetchTopology(): Promise<void> {
-  try {
-    const response = await fetch("/api/topology");
-
-    if (!response.ok) {
-      throw new Error("Failed to load topology");
-    }
-
-    const data = (await response.json()) as Topology;
-    renderTopology(data);
-    await fetchDevices();
-  } catch (error) {
-    showMessage((error as Error).message, true);
+function setOverlay(text: string) {
+  let el = document.getElementById("frontend-overlay") as HTMLDivElement | null;
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "frontend-overlay";
+    el.style.position = "fixed";
+    el.style.left = "0";
+    el.style.right = "0";
+    el.style.top = "0";
+    el.style.bottom = "0";
+    el.style.display = "flex";
+    el.style.alignItems = "center";
+    el.style.justifyContent = "center";
+    el.style.background = "rgba(255,255,255,0.85)";
+    el.style.zIndex = "9999";
+    document.body.appendChild(el);
   }
+  el.textContent = text;
 }
 
-async function fetchDevices(): Promise<void> {
-  const response = await fetch("/api/devices");
-
-  if (!response.ok) {
-    showMessage("Unable to load discovered devices", true);
-    return;
-  }
-
-  const devices = (await response.json()) as DiscoveredDevice[];
-  renderDeviceList(devices);
+function clearOverlay() {
+  const el = document.getElementById("frontend-overlay");
+  if (el) el.remove();
 }
 
 function renderTopology(data: Topology): void {
   const elements: ElementDefinition[] = [];
 
   data.nodes.forEach((node) => {
+    const displayLabel = node.label || String(node.id);
+    const macLabel = node.mac ? `\n${node.mac}` : "";
     elements.push({
       data: {
-        id: node.id,
-        label: node.label,
+        id: String(node.id),
+        label: displayLabel + macLabel,
         ip: node.ip,
+        mac: node.mac,
         type: node.type,
         model: node.model,
       },
-      classes: node.type ? node.type.toLowerCase() : "",
     });
   });
 
   data.edges.forEach((edge) => {
-    elements.push({
-      data: {
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        label: edge.label,
-        protocol: edge.protocol,
-        platform: edge.platform,
-      },
-    });
+    elements.push({ data: { id: String(edge.id), source: String(edge.source), target: String(edge.target) } });
   });
 
   cy.json({ elements });
@@ -129,96 +93,60 @@ function renderTopology(data: Topology): void {
 
   cy.on("tap", "node", (event: any) => {
     const nodeData = event.target.data();
-    showMessage(
-      `Device: ${nodeData.label} (${nodeData.type || "Unknown"})\nIP: ${nodeData.ip || "N/A"}\nModel: ${nodeData.model || "N/A"}`,
-      false,
-    );
+    const shortLabel = (nodeData.label || "").split("\n")[0];
+    const info = `Device: ${shortLabel}\nIP: ${nodeData.ip || "N/A"}\nModel: ${nodeData.model || "N/A"}\nMAC: ${nodeData.mac || "N/A"}`;
+    const infoEl = document.createElement("div");
+    infoEl.textContent = info;
+    infoEl.style.position = "fixed";
+    infoEl.style.bottom = "20px";
+    infoEl.style.left = "20px";
+    infoEl.style.background = "rgb(77, 70, 70)";
+    infoEl.style.color = "#fff";
+    infoEl.style.padding = "8px 10px";
+    infoEl.style.borderRadius = "8px";
+    infoEl.style.zIndex = "10000";
+    infoEl.style.whiteSpace = "pre-line";
+    document.body.appendChild(infoEl);
+    setTimeout(() => infoEl.remove(), 4000);
   });
 }
 
-function renderDeviceList(devices: DiscoveredDevice[]): void {
-  if (!devices || devices.length === 0) {
-    deviceList.innerHTML = "<p>No devices discovered yet.</p>";
-    return;
-  }
-
-  const items = devices
-    .map((device) => {
-      const deviceName = (device["Device Name"] as string) || (device["IP Address"] as string) || "Unknown";
-      const deviceType = (device["Device Type"] as string) || "Unknown";
-      const deviceIp = (device["IP Address"] as string) || "N/A";
-      const deviceModel = (device["Model Number"] as string) || "N/A";
-
-      return `
-        <div class="device-card">
-          <strong>${deviceName}</strong>
-          <div>Type: ${deviceType}</div>
-          <div>IP: ${deviceIp}</div>
-          <div>Model: ${deviceModel}</div>
-        </div>
-      `;
-    })
-    .join("");
-
-  deviceList.innerHTML = items;
-}
-
-async function discoverDevice(event: Event): Promise<void> {
-  event.preventDefault();
-
-  const formData = new FormData(form);
-  const payload: DiscoverPayload = {
-    ip: formData.get("ip") as string | null,
-    version: Number(formData.get("version")),
-    community: (formData.get("community") as string) || "public",
-    user: formData.get("user") as string | null,
-    auth_key: formData.get("auth_key") as string | null,
-    priv_key: formData.get("priv_key") as string | null,
-    auth_proto: (formData.get("auth_proto") as string) || "SHA",
-    priv_proto: (formData.get("priv_proto") as string) || "AES",
-  };
-
+async function initAutoDiscover() {
   try {
-    showMessage("Discovering device...", false);
-
-    const response = await fetch("/api/discover", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error((data as { detail?: string }).detail || "Discovery failed");
+    setOverlay("Determining local network...");
+    let subnet = "192.168.1.0/24";
+    try {
+      const r = await fetch("/api/local_network");
+      if (r.ok) {
+        const j = await r.json();
+        if (j && j.default_subnet) subnet = j.default_subnet;
+      }
+    } catch (e) {
+      console.warn("local_network lookup failed, falling back to", subnet, e);
     }
 
-    showMessage(`Discovered ${(data as any).device["Device Name"] || payload.ip} successfully.`, false);
-    await fetchTopology();
-  } catch (error) {
-    showMessage((error as Error).message, true);
+    setOverlay(`Scanning ${subnet} (this may take a few minutes)...`);
+    const scanResp = await fetch("/api/discovery/integrated-scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subnet: subnet, snmp_version: 2, snmp_community: "public" }),
+    });
+
+    if (!scanResp.ok) {
+      const err = await scanResp.text();
+      throw new Error("Discovery failed: " + err);
+    }
+
+    setOverlay("Fetching topology...");
+    const topoResp = await fetch("/api/topology");
+    if (!topoResp.ok) throw new Error("Failed to fetch topology");
+    const topology = (await topoResp.json()) as Topology;
+    renderTopology(topology);
+    clearOverlay();
+  } catch (err) {
+    console.error(err);
+    setOverlay("Error: " + (err instanceof Error ? err.message : String(err)) + " — see console for details.");
   }
 }
 
-async function resetTopology(): Promise<void> {
-  const response = await fetch("/api/reset", { method: "POST" });
-
-  if (!response.ok) {
-    showMessage("Failed to reset topology", true);
-    return;
-  }
-
-  showMessage("Topology reset.", false);
-  cy.elements().remove();
-  deviceList.innerHTML = "<p>No devices discovered yet.</p>";
-}
-
-function showMessage(text: string, isError: boolean): void {
-  messageBox.textContent = text;
-  messageBox.className = isError ? "message error" : "message success";
-}
-
-form.addEventListener("submit", discoverDevice);
-resetButton.addEventListener("click", resetTopology);
-
-fetchTopology();
+initAutoDiscover();

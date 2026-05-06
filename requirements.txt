@@ -16,3 +16,4 @@ python-dateutil==2.9.0.post0
 screeninfo==0.8.1
 six==1.17.0
 pyinstaller
+python-nmap>=0.0.3

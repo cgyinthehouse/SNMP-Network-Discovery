@@ -4,6 +4,7 @@ export type TopologyNode = {
   ip?: string;
   type?: string;
   model?: string;
+  mac?: string;
 };
 
 export type TopologyEdge = {

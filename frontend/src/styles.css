@@ -29,6 +29,10 @@ body {
   padding: 24px;
 }
 
+.container.only-topology {
+  grid-template-columns: 1fr;
+}
+
 header {
   grid-column: 1 / -1;
   margin-bottom: 16px;

@@ -1,4 +1,5 @@
 import json
+import re
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -44,7 +45,7 @@ class GraphManager:
         seen_node_ids = set()
         seen_edges = set()
 
-        def add_node(node_id, label=None, ip=None, device_type=None, model=None):
+        def add_node(node_id, label=None, ip=None, device_type=None, model=None, mac=None):
             if not node_id or node_id in seen_node_ids:
                 return
             seen_node_ids.add(node_id)
@@ -54,52 +55,128 @@ class GraphManager:
                 "ip": ip,
                 "type": device_type,
                 "model": model,
+                "mac": mac,
             })
 
+        def first_of(d: dict, keys):
+            for k in keys:
+                if k in d and d[k]:
+                    return d[k]
+            return None
+
         for device in devices:
-            device_name = device.get("Device Name") or device.get("IP Address")
-            if not device_name:
+            # Support multiple possible key names from different discovery outputs
+            device_name = first_of(device, ["Device Name", "DeviceName", "hostname", "name", "Device", "IP Address", "ip_address", "ip"])
+            ip_addr = first_of(device, ["IP Address", "ip", "ip_address", "ipAddress"]) or device.get("ip")
+            device_type = first_of(device, ["Device Type", "device_type"]) or "Unknown"
+
+            # Prefer explicit model fields; don't conflate MACs with model names.
+            model_candidate = first_of(device, ["Model Number", "model", "model_number"]) or None
+            mac_candidate = first_of(device, ["MAC Address", "mac_address", "mac"]) or None
+
+            # Backwards compatibility: some code previously stored MAC into `model`.
+            # Detect common MAC address formats and move to `mac` when appropriate.
+            mac = None
+            model = None
+            mac_regex = re.compile(r"^([0-9A-Fa-f]{2}([:\-]|$)){6}|[0-9A-Fa-f]{4}\.[0-9A-Fa-f]{4}\.[0-9A-Fa-f]{4}$")
+
+            if mac_candidate:
+                mac = mac_candidate
+
+            if model_candidate:
+                # If the model_candidate looks like a MAC address and we don't
+                # already have a mac, treat it as a MAC (back-compat).
+                if not mac and isinstance(model_candidate, str) and mac_regex.search(model_candidate):
+                    mac = model_candidate
+                else:
+                    model = model_candidate
+
+            if not device_name and not ip_addr:
                 continue
 
+            node_id = device_name or ip_addr
+
             add_node(
-                device_name,
-                label=device.get("Device Name", device_name),
-                ip=device.get("IP Address"),
-                device_type=device.get("Device Type", "Unknown"),
-                model=device.get("Model Number", "Unknown"),
+                node_id,
+                label=device_name or ip_addr,
+                ip=ip_addr,
+                device_type=device_type,
+                model=model,
+                mac=mac,
             )
 
-            neighbors = device.get("Details", {}).get("Neighbors", [])
-            for neighbor in neighbors:
-                neighbor_name = neighbor.get("Neighbor Name") or neighbor.get("Neighbor ID") or neighbor.get("Destination IP")
-                if not neighbor_name or neighbor_name in {"Unknown", "N/A", ""}:
+        # If no topology edges were discovered (common when only nmap ping
+        # discovery ran and SNMP neighbor data is unavailable), build a
+        # simple fallback topology by connecting hosts to a likely gateway
+        # or as a star around the first node. This gives the UI something
+        # meaningful to display instead of isolated nodes.
+        if not edges and len(nodes) > 1:
+            # Candidate gateway heuristics: hostname contains 'gateway' or
+            # IP ends with .1 or .254 which are common gateway addresses.
+            gateway_id = None
+            for n in nodes:
+                ip = n.get("ip") or ""
+                label = (n.get("label") or "").lower()
+                if "gateway" in label or ip.endswith(".1") or ip.endswith(".254"):
+                    gateway_id = n["id"]
+                    break
+
+            if gateway_id is None:
+                # fallback to first node as center
+                gateway_id = nodes[0]["id"]
+
+            for n in nodes:
+                nid = n["id"]
+                if nid == gateway_id:
                     continue
-
-                add_node(
-                    neighbor_name,
-                    label=neighbor.get("Neighbor Name", neighbor_name),
-                    ip=neighbor.get("Destination IP"),
-                    device_type=None,
-                    model=None,
-                )
-
-                local_interface = neighbor.get("Origin Interface") or neighbor.get("local_interface") or "Unknown"
-                remote_interface = neighbor.get("Remote Port") or neighbor.get("remote_interface") or "Unknown"
-                edge_label = f"{local_interface} → {remote_interface}"
-                edge_key = tuple(sorted([device_name, neighbor_name]) + [edge_label])
-
+                edge_label = "link"
+                edge_key = tuple(sorted([gateway_id, nid]) + [edge_label])
                 if edge_key in seen_edges:
                     continue
-
                 seen_edges.add(edge_key)
                 edges.append({
-                    "id": f"{device_name}|{neighbor_name}|{edge_label}",
-                    "source": device_name,
-                    "target": neighbor_name,
-                    "label": edge_label,
-                    "protocol": neighbor.get("Protocol", "Unknown"),
-                    "platform": neighbor.get("Platform", ""),
+                    "id": f"{gateway_id}|{nid}|{edge_label}",
+                    "source": gateway_id,
+                    "target": nid,
+                    "protocol": "unknown",
+                    "platform": "",
                 })
+            # If any devices include explicit neighbor lists, add those edges too
+            for dev in devices:
+                dev_name = first_of(dev, ["Device Name", "DeviceName", "hostname", "name", "Device"]) or first_of(dev, ["IP Address", "ip", "ip_address"]) or None
+                if not dev_name:
+                    continue
+                neighbors = dev.get("Details", {}).get("Neighbors", [])
+                for neighbor in neighbors:
+                    neighbor_name = neighbor.get("Neighbor Name") or neighbor.get("Neighbor ID") or neighbor.get("Destination IP")
+                    if not neighbor_name or neighbor_name in {"Unknown", "N/A", ""}:
+                        continue
+
+                    add_node(
+                        neighbor_name,
+                        label=neighbor.get("Neighbor Name", neighbor_name),
+                        ip=neighbor.get("Destination IP"),
+                        device_type=None,
+                        model=None,
+                        mac=None,
+                    )
+
+                    local_interface = neighbor.get("Origin Interface") or neighbor.get("local_interface") or "Unknown"
+                    remote_interface = neighbor.get("Remote Port") or neighbor.get("remote_interface") or "Unknown"
+                    edge_label = f"{local_interface} → {remote_interface}"
+                    edge_key = tuple(sorted([dev_name, neighbor_name]) + [edge_label])
+
+                    if edge_key in seen_edges:
+                        continue
+
+                    seen_edges.add(edge_key)
+                    edges.append({
+                        "id": f"{dev_name}|{neighbor_name}|{edge_label}",
+                        "source": dev_name,
+                        "target": neighbor_name,
+                        "protocol": neighbor.get("Protocol", "Unknown"),
+                        "platform": neighbor.get("Platform", ""),
+                    })
 
         return {"nodes": nodes, "edges": edges}
 
