@@ -27,7 +27,6 @@ echo ""
 
 # Activate virtual environment if it exists
 # uv handles environment automatically
-fi
 
 discovered=0
 failed=0

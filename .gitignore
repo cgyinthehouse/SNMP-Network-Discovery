@@ -14,6 +14,7 @@ dist/
 logs/
 build/
 *.tmp
+.coverage
 node_modules/
 package-lock.json
 network_discovery/network_discovery.py
