@@ -5,7 +5,7 @@ This script performs SNMP-based network device discovery, supporting SNMPv1, SNM
 
 ## Run with Docker
 ```sh
-docker build -t network_topology -f Dockerfile . && docker run --rm -d -v logs:/app/logs --name network_topology -p 8000:8000 --network host network_topology
+docker build -t network_topology -f Dockerfile . && docker run --rm -d -v lan_topology_logs:/logs:ro --name network_topology --network host network_topology
 ```
 
 ## Requirements
