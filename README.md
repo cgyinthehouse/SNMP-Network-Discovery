@@ -3,6 +3,11 @@
 ## Overview
 This script performs SNMP-based network device discovery, supporting SNMPv1, SNMPv2c, and SNMPv3. It identifies device types (Router/Switch/Firewall) and retrieves detailed information including interfaces, network adapters, and immediate neighbors.
 
+## Run with Docker
+```sh
+docker build -t network_topology -f Dockerfile . && docker run --rm -d -v logs:/app/logs --name network_topology -p 8000:8000 --network host network_topology
+```
+
 ## Requirements
 - **Python:** 3.12 or higher
 - **uv:** For dependency management
